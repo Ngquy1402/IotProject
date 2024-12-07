@@ -1,48 +1,54 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Button } from 'react-native-paper';
-import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../App';
+import React, { useState } from 'react';
+import { View, StyleSheet, Button, Image, Text } from 'react-native';
+import Video from 'react-native-video';
+import axios from 'axios';
 
-type Props = StackScreenProps<RootStackParamList, 'StudentDetail'>;
+const StudenDetail = () => {
+  // State để lưu URL của ảnh chụp
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-const StudentDetail: React.FC<Props> = ({ route, navigation }) => {
-  const { studentId, studentName, examId } = route.params;
+  // Fake API endpoints
+  const streamUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'; // Video giả lập
+  const captureApi = 'https://6754347636bcd1eec8508401.mockapi.io/ESP32_CAM'; // Fake API
 
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: studentName,
-      headerTitleAlign: 'center',
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.goBackButton}>
-          <Text style={styles.goBackText}>{'< Back'}</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, studentName]);
-
-  const handleGrade = () => {
-    console.log(`Chấm điểm cho học sinh ${studentName} (${studentId}) trong kỳ thi ${examId}`);
-    // TODO: Gọi API lấy ảnh bài làm từ database và xử lý.
-  };
-
-  const handleViewResult = () => {
-    console.log(`Xem kết quả của học sinh ${studentName} (${studentId}) trong kỳ thi ${examId}`);
-    // TODO: Gọi API lấy ảnh bài làm từ database và xử lý.
+  // Hàm chụp ảnh
+  const captureImage = async () => {
+    try {
+      setStatusMessage('Đang chụp ảnh...');
+      const response = await axios.get(captureApi); // Gửi request đến API
+      setImageUrl(response.data.imageUrl); // Cập nhật URL ảnhd // Thông báo trạng thái
+    } catch (error) {
+      console.error('Lỗi chụp ảnh:', error);
+      setStatusMessage('Lỗi chụp ảnh!');
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.subtitle}>Mã học sinh: {studentId}</Text>
+      {/* Video stream */}
+      <Text style={styles.header}>ESP32-CAM Stream</Text>
+      <Video
+        source={{ uri: streamUrl }}
+        style={styles.video}
+        resizeMode="contain"
+        controls
+      />
 
-      <View style={styles.buttonContainer}>
-        <Button mode="contained" onPress={handleGrade} style={styles.button}>
-          Chấm điểm
-        </Button>
-        <Button mode="outlined" onPress={handleViewResult} style={styles.button}>
-          Xem kết quả
-        </Button>
-      </View>
+      {/* Button chụp ảnh */}
+      <Button title="Chụp Ảnh" onPress={captureImage} />
+
+      {/* Hiển thị trạng thái */}
+      {statusMessage && <Text style={styles.status}>{statusMessage}</Text>}
+
+      {/* Hiển thị ảnh chụp */}
+      {imageUrl && (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      )}
     </View>
   );
 };
@@ -50,32 +56,35 @@ const StudentDetail: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 16,
     backgroundColor: '#f5f5f5',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginBottom: 24,
+  header: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  video: {
     width: '100%',
+    height: 200,
+    backgroundColor: '#000',
+    marginBottom: 16,
   },
-  button: {
-    width: '40%',
-  },
-  goBackButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  goBackText: {
+  status: {
+    marginTop: 8,
+    textAlign: 'center',
     fontSize: 16,
-    color: '#007BFF',
+    color: '#333',
+  },
+  image: {
+    width: '100%',
+    height: 200,
+    marginTop: 16,
+    borderRadius: 8,
+    borderColor: '#ddd',
+    borderWidth: 1,
   },
 });
 
-export default StudentDetail;
+export default StudenDetail;
