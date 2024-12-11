@@ -1,41 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import axios from 'axios';
 import { RootStackParamList } from '../../App';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddAnswer'>;
 
-export default function AddAnswer({ route, navigation }: Props) {
-    const { examId, questionNumber, examName } = route.params;
-
-    const [numQuestions, setNumQuestions] = useState<number>(questionNumber);  // Lưu số câu hỏi
-    const [answers, setAnswers] = useState<string[]>([]);  // Mảng lưu đáp án
-
-    // Cập nhật lại mảng đáp án khi số câu hỏi thay đổi
-    useEffect(() => {
-        setNumQuestions(questionNumber);  // Cập nhật số câu hỏi
-        setAnswers(Array(questionNumber).fill(''));  // Cập nhật mảng đáp án với đúng số câu hỏi
-    }, [questionNumber]);  // Mỗi khi questionNumber thay đổi, useEffect sẽ được gọi lại
-
-    // Hàm xử lý khi người dùng thay đổi đáp án
+const AddAnswer = ({ route, navigation }: Props) => {
+    const { examid } = route.params;
+    const [numQuestions, setNumQuestions] = useState<number>(3);
+    const [answers, setAnswers] = useState<string[]>(Array(3).fill(''));
     const handleAnswerChange = (text: string, index: number) => {
         const newAnswers = [...answers];
         newAnswers[index] = text;
         setAnswers(newAnswers);
     };
+    const saveAnswers = async () => {
+        try {
+            for (let index = 0; index < answers.length; index++) {
+                const payload = {
+                    request: {
+                        bai_thi_id: examid,
+                        stt: index + 1,
+                        answer: answers[index].trim(),
+                    },
+                };
 
-    // Hàm lưu đáp án
-    const saveAnswers = () => {
-        console.log(`Đáp án cho bài thi ${examId}:`, answers);
-        navigation.goBack();  // Quay lại trang trước
+                console.log(`Gửi câu ${index + 1}:`, JSON.stringify(payload, null, 2));
+
+                const response = await axios.post('http://52.43.134.34:8080/api/iot/answer', payload, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (response.status === 200 || response.status === 201) {
+                    console.log(`Câu ${index + 1} lưu thành công:`, response.data);
+                } else {
+                    console.error(`Lỗi khi lưu câu ${index + 1}:`, response.status);
+                    Alert.alert('Lỗi', `Lỗi khi lưu câu ${index + 1}, mã lỗi: ${response.status}`);
+                    return;
+                }
+            }
+
+            Alert.alert('Thành công', 'Tất cả đáp án đã được lưu thành công!');
+            navigation.goBack();
+        } catch (error) {
+            console.error('Error saving answers:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('Axios error details:', error.response?.data);
+            }
+            Alert.alert('Lỗi', 'Không thể lưu đáp án. Vui lòng kiểm tra lại.');
+        }
     };
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.goBackButton}>
-                    <Ionicons name='chevron-back' size={29} color="gray" />
+                    <Ionicons name='chevron-back' size={30} color="gray" />
                 </TouchableOpacity>
                 <Text style={styles.headerText}>Thêm đáp án</Text>
             </View>
@@ -50,7 +72,6 @@ export default function AddAnswer({ route, navigation }: Props) {
                             value={answer}
                             onChangeText={(text) => handleAnswerChange(text, index)}
                             placeholderTextColor="#aaa"
-                            
                         />
                     </View>
                 ))}
@@ -63,11 +84,20 @@ export default function AddAnswer({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f5f5', padding: 20 },
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+        paddingHorizontal: 20,
+    },
     header: {
         flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
+        position: 'relative',
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
     },
     goBackButton: {
         position: 'absolute',
@@ -76,7 +106,7 @@ const styles = StyleSheet.create({
         zIndex: 1,
     },
     headerText: {
-        fontSize: 24,
+        fontSize: 30,
         fontWeight: 'bold',
         textAlign: 'center',
         flex: 1,
@@ -94,7 +124,11 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 4,
     },
-    inputLabel: { fontSize: 16, color: '#444', marginBottom: 5 },
+    inputLabel: {
+        fontSize: 16,
+        color: '#444',
+        marginBottom: 5
+    },
     input: {
         borderWidth: 1,
         borderColor: '#ddd',
@@ -107,6 +141,7 @@ const styles = StyleSheet.create({
     saveButton: {
         backgroundColor: '#2196f3',
         paddingVertical: 15,
+        marginBottom: 15,
         borderRadius: 10,
         alignItems: 'center',
         shadowColor: '#000',
@@ -118,3 +153,4 @@ const styles = StyleSheet.create({
     saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
 
+export default AddAnswer

@@ -1,61 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
-import { Exam } from '../types/ExamTypes';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExamList'>;
 
-function ExamList({ navigation }: Props) {
-  const [exams, setExams] = useState<Exam[]>([]);
+const ExamList = ({ navigation }: Props) => {
+  const examid = 'dynamic-exam-id'
+  const [exams, setExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const API_URL = 'http://52.43.134.34:8080/api/iot/list';
 
-  const getApi = () => {
-  const mockData = [
-    { id: "1", examName: "Toán Học 12", description: "Bài kiểm tra học kỳ 1" , questionNumber: 6},
-    { id: "2", examName: "Vật Lý 10", description: "Bài kiểm tra giữa kỳ 2" , questionNumber: 8},
-    { id: "3", examName: "Hóa Học 11", description: "Bài kiểm tra cuối kỳ", questionNumber: 5},
-    { id: "4", examName: "Ngữ Văn 12", description: "Bài kiểm tra tổng kết" , questionNumber: 10 },
-  ];
-  setExams(mockData);
-};
+  const fetchExams = useCallback(async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setExams(response.data);
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách bài thi. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // const getApi = () => {
-  //   fetch('https://6754347636bcd1eec8508401.mockapi.io/Examlist')
-  //     .then((response) => response.json())
-  //     .then((data) => setExams(data))
-  //     .catch((error) => console.error(error));
-  // };
+  useEffect(() => {
+    fetchExams();
+    const unsubscribe = navigation.addListener('focus', fetchExams);
+    return unsubscribe;
+  }, [fetchExams, navigation]);
 
-  // Gọi getApi mỗi khi trang nhận được focus
-  useFocusEffect(
-    React.useCallback(() => {
-      getApi();
-    }, [])
-  );
+  const handleAddExam = () => {
+    navigation.navigate('AddExam');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4DA6FF" />
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+      </View>
+    );
+  }
+
+  if (exams.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noDataText}>Không có bài thi nào để hiển thị.</Text>
+        <TouchableOpacity style={styles.addExamButton} onPress={handleAddExam}>
+          <Text style={styles.addExamButtonText}>Thêm bài thi mới</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>Danh sách bài thi</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => navigation.navigate('AddExam')}>
-            <Icon name="edit" size={29} color="#4DA6FF" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.headericon} onPress={handleAddExam}>
+          <Icon name="edit" size={30} color="#2196f3" />
+        </TouchableOpacity>
       </View>
+
       <FlatList
         data={exams}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.examCard}
-            onPress={() => navigation.navigate('ExamDetail', { exam: item })}
+            onPress={() => navigation.navigate('ExamDetail', { examid: item.id, name: item.name })}
             activeOpacity={0.8}
           >
-            <Text style={styles.examName}>{item.examName}</Text>
-            <Text style={styles.examDescription}>{item.description}</Text>
+            <Text style={styles.examName}>{item.name}</Text>
+            <Text style={styles.examDescription}>{item.description || 'Không có mô tả.'}</Text>
           </TouchableOpacity>
         )}
       />
@@ -64,40 +83,98 @@ function ExamList({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container:
+  {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-    padding: 16,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 20,
   },
-  header: {
+  header:
+  {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingVertical: 15,
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
   },
-  headerText: {
-    fontSize: 25,
+
+  headerText:
+  {
+    fontSize: 30,
     fontWeight: 'bold',
     textAlign: 'center',
     flex: 1,
   },
-  headerIcons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+
+  headericon:
+  {
+    position: 'absolute',
+    right: 10,
   },
-  examCard: {
-    backgroundColor: '#ffffff',
+
+  loadingContainer:
+  {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  loadingText:
+  {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666'
+  },
+  noDataText:
+  {
+    textAlign: 'center',
+    fontSize: 18,
+    color: '#999',
+    marginTop: 20
+  },
+  addExamButton: {
+    marginTop: 20,
+    alignSelf: 'center',
+    backgroundColor: '#2196f3',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  addExamButtonText:
+  {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  examCard:
+  {
+    backgroundColor: '#e6f7ff',
     padding: 20,
     borderRadius: 12,
     marginBottom: 15,
     shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: '#87cefa', 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  examName: { fontSize: 18, color: '#444', fontWeight: '600', marginBottom: 5 },
-  examDescription: { fontSize: 14, color: '#666' },
+  examName:
+  {
+    fontSize: 20,
+        fontWeight: 'bold',
+        color: '#4682b4',
+        marginBottom: 5,
+  },
+  examDescription:
+  {
+    fontSize: 15,
+        color: '#777',
+        marginBottom: 5,
+  },
 });
 
 export default ExamList;
